@@ -83,3 +83,8 @@ class G1ParkourPPORunnerCfg(InstinctRlOnPolicyRunnerCfg):
     empirical_normalization = False
     policy = MoEPolicyCfg()
     algorithm = AmpAlgoCfg()
+
+
+@configclass
+class G1Parkour23DofPPORunnerCfg(G1ParkourPPORunnerCfg):
+    experiment_name = "g1_23dof_parkour"

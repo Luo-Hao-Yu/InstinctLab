@@ -178,6 +178,10 @@ def main():
                 os.makedirs(export_model_dir)
             obs, _ = env.get_observations()
             ppo_runner.alg.actor_critic.export_as_onnx(obs, export_model_dir)
+            if "G1-23dof" in args_cli.task:
+                from export_metadata import export_g1_23dof_metadata
+
+                export_g1_23dof_metadata(env, export_model_dir, resume_path)
             if args_cli.export_only:
                 print(f"[INFO] ONNX export complete: {export_model_dir}. Exiting without playback.")
                 env.close()

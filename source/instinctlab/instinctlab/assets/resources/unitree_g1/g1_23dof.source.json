@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/unitreerobotics/unitree_ros",
+  "commit": "9926cc2f179ae3b86f4f74087bd32ef0c8b6fd90",
+  "path": "robots/g1_description/g1_23dof.urdf",
+  "url": "https://github.com/unitreerobotics/unitree_ros/blob/9926cc2f179ae3b86f4f74087bd32ef0c8b6fd90/robots/g1_description/g1_23dof.urdf",
+  "sha256": "5d5a7380ec2f747e82dfd7c61fe70515715d413c3521a02911ef5dd9a007e374",
+  "modifications": []
+}

@@ -1,5 +1,10 @@
 # 本机环境
 
+G1 23dof 的独立 Parkour 任务、动作转换、训练及导出命令见
+[G1_23DOF.md](source/instinctlab/instinctlab/tasks/parkour/G1_23DOF.md)。
+2026-10-16 已完成 8/512 环境各一轮训练、ONNX 导出与 32 步 ONNX 仿真检查；
+正式 23dof 策略尚需重新训练。原来的 29dof 任务和模型保持独立。
+
 本机 Ubuntu 20.04 / glibc 2.31 不满足 Isaac Sim 5.1 的 glibc 2.35 要求，
 因此使用独立 Docker 环境；系统 Python、已有 IsaacLab、instinct_rl 仓库及其他容器保持原样。
 

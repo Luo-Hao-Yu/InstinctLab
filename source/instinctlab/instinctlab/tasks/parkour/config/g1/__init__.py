@@ -30,3 +30,18 @@ gym.register(
         "instinct_rl_cfg_entry_point": f"{agents.__name__}.instinct_rl_amp_cfg:G1ParkourPPORunnerCfg",
     },
 )
+
+
+for task_id, env_cfg in (
+    ("Instinct-Parkour-Target-Amp-G1-23dof-v0", "G1Parkour23DofEnvCfg"),
+    ("Instinct-Parkour-Target-Amp-G1-23dof-Play-v0", "G1Parkour23DofEnvCfg_PLAY"),
+):
+    gym.register(
+        id=task_id,
+        entry_point="instinctlab.envs:InstinctRlEnv",
+        disable_env_checker=True,
+        kwargs={
+            "env_cfg_entry_point": f"{task_entry}.g1_23dof_parkour_target_amp_cfg:{env_cfg}",
+            "instinct_rl_cfg_entry_point": f"{agents.__name__}.instinct_rl_amp_cfg:G1Parkour23DofPPORunnerCfg",
+        },
+    )

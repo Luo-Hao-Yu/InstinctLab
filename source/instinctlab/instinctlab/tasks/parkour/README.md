@@ -1,5 +1,9 @@
 # Parkour Task
 
+For the standard Unitree G1 23dof robot, use the separate
+[G1 23dof training, playback and export workflow](G1_23DOF.md).
+The task IDs below retain the original 29dof model.
+
 ## Basic Usage Guidelines
 
 ### Parkour Task
