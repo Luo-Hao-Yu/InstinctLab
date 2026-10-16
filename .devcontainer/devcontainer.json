@@ -1,0 +1,27 @@
+{
+    "name": "InstinctLab (Isaac Sim 5.1 / Python 3.11)",
+    "image": "instinctlab-env:local",
+    "workspaceFolder": "/workspace/instinctlab",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/instinctlab,type=bind",
+    "runArgs": ["--runtime", "nvidia", "--gpus", "all", "--network", "host", "--shm-size", "4g"],
+    "containerEnv": {"OMNI_KIT_ALLOW_ROOT": "1"},
+    "postCreateCommand": "git config --global --add safe.directory /workspace/instinctlab",
+    "customizations": {
+        "vscode": {
+            "extensions": ["ms-python.python", "ms-python.vscode-pylance"],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.analysis.extraPaths": [
+                    "/workspace/instinctlab/source/instinctlab",
+                    "/workspace/instinct_rl",
+                    "/workspace/isaaclab/source/isaaclab",
+                    "/workspace/isaaclab/source/isaaclab_assets",
+                    "/workspace/isaaclab/source/isaaclab_tasks",
+                    "/workspace/isaaclab/source/isaaclab_rl",
+                    "/workspace/isaaclab/source/isaaclab_mimic",
+                    "/isaac-sim/exts/isaacsim.simulation_app"
+                ]
+            }
+        }
+    }
+}

@@ -1,5 +1,6 @@
 import copy
 import os
+from pathlib import Path
 
 from isaaclab.envs import ViewerCfg
 from isaaclab.utils import configclass
@@ -31,9 +32,9 @@ G1_with_shoe_CFG.spawn.asset_path = os.path.abspath(
 
 @configclass
 class AmassMotionCfg(AmassMotionCfgBase):
-    path = os.path.expanduser("~/Datasets")
+    path = str(Path(__file__).resolve().parents[7] / "datasets/parkour/parkour_motion_reference")
     retargetting_func = None
-    filtered_motion_selection_filepath = os.path.expanduser("~/Datasets/parkour_motion_without_run.yaml")
+    filtered_motion_selection_filepath = os.path.join(path, "parkour_motion_without_run.yaml")
     motion_start_from_middle_range = [0.0, 0.9]
     motion_start_height_offset = 0.0
     ensure_link_below_zero_ground = False

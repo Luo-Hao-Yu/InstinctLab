@@ -1,0 +1,13 @@
+**
+!.environment/
+!.environment/IsaacLab/
+!.environment/IsaacLab/**
+!.environment/instinct_rl/
+!.environment/instinct_rl/**
+!source/
+!source/**
+!docker/
+!docker/constraints.local.txt
+!docker/Dockerfile.local
+**/__pycache__/
+**/*.egg-info/

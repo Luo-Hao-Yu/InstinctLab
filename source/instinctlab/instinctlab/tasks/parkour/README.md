@@ -22,8 +22,18 @@ python source/instinctlab/instinctlab/tasks/parkour/scripts/play.py --task=Insti
 4. Export trained policy (load_run must be provided, absolute path is recommended):
 
 ```bash
-python source/instinctlab/instinctlab/tasks/parkour/scripts/play.py --task=Instinct-Parkour-Target-Amp-G1-v0 --load_run=<run_name> --exportonnx --useonnx
+python source/instinctlab/instinctlab/tasks/parkour/scripts/play.py --task=Instinct-Parkour-Target-Amp-G1-Play-v0 --load_run=<run_name> --num_envs=1 --exportonnx --useonnx
 ```
+
+To export and exit without playback or livestreaming:
+
+```bash
+python source/instinctlab/instinctlab/tasks/parkour/scripts/play.py --task=Instinct-Parkour-Target-Amp-G1-Play-v0 --load_run=<run_directory> --checkpoint=model_30000.pt --num_envs=1 --headless --livestream=0 --exportonnx --export_only
+```
+
+`--load_run` selects the run directory; `--checkpoint` selects the model file inside it.
+Export still initializes one simulation environment to obtain the policy input, then writes
+the ONNX files to `<run_directory>/exported/` and exits before the playback loop.
 
 ## Common Options
 
@@ -32,4 +42,5 @@ python source/instinctlab/instinctlab/tasks/parkour/scripts/play.py --task=Insti
 - `--load_run`: Run name to load checkpoint from for playing
 - `--video`: Record training/playback videos
 - `--exportonnx`: Export the trained model to ONNX format for onboard deployment during playing
-- `--useonnx`: Use the ONNX model for inference during playing (requires `--exportonnx`)
+- `--export_only`: Exit after export without playback (requires `--exportonnx` and `--load_run`)
+- `--useonnx`: Use existing exported ONNX models for inference during playing, or combine with `--exportonnx` to export first

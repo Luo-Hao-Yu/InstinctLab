@@ -68,7 +68,7 @@ simulation_app = app_launcher.app
 import gymnasium as gym
 import torch
 import torch.distributed as dist
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from instinct_rl.runners import OnPolicyRunner
 
@@ -157,8 +157,8 @@ def main(env_cfg: ManagerBasedRLEnvCfg | DirectRLEnvCfg | DirectMARLEnvCfg, agen
         log_root_path = args_cli.logroot
 
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
-    # specify directory for logging runs: {time-stamp}_{run_name}
-    log_dir = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Use UTC+8 for run timestamps, independent of the host/container timezone.
+    log_dir = datetime.now(timezone(timedelta(hours=8))).strftime("%Y%m%d_%H%M%S")
     if getattr(env_cfg, "run_name", None):
         log_dir += f"_{env_cfg.run_name}"
     if agent_cfg.run_name:

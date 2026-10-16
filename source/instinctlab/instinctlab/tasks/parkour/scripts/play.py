@@ -4,6 +4,7 @@
 
 import argparse
 import os
+import pickle
 import subprocess
 import sys
 
@@ -25,6 +26,9 @@ parser.add_argument(
 parser.add_argument("--num_envs", type=int, default=None, help="Number of environments to simulate.")
 parser.add_argument("--task", type=str, default=None, help="Name of the task.")
 parser.add_argument("--exportonnx", action="store_true", default=False, help="Export policy as ONNX model.")
+parser.add_argument(
+    "--export_only", action="store_true", help="Exit after ONNX export without playing (requires --exportonnx)."
+)
 parser.add_argument("--useonnx", action="store_true", default=False, help="Use the exported ONNX model for inference.")
 parser.add_argument("--debug", action="store_true", default=False, help="Enable debug mode.")
 parser.add_argument("--no_resume", default=None, action="store_true", help="Force play in no resume mode.")
@@ -42,6 +46,11 @@ cli_args.add_instinct_rl_args(parser)
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
+if args_cli.export_only:
+    if not args_cli.exportonnx or not args_cli.load_run:
+        parser.error("--export_only requires --exportonnx and --load_run.")
+    if args_cli.useonnx:
+        parser.error("--export_only cannot be combined with --useonnx.")
 # always enable cameras to record video
 if args_cli.video:
     args_cli.enable_cameras = True
@@ -56,14 +65,13 @@ import gymnasium as gym
 import torch
 
 import carb.input
-import omni.appwindow
 from carb.input import KeyboardEventType
 from instinct_rl.runners import OnPolicyRunner
 from instinct_rl.utils.utils import get_obs_slice, get_subobs_by_components, get_subobs_size
 
 from isaaclab.envs import DirectMARLEnv, multi_agent_to_single_agent
 from isaaclab.utils.dict import print_dict
-from isaaclab.utils.io import load_pickle, load_yaml
+from isaaclab.utils.io import load_yaml
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
 
 # Import extensions to set up environment tasks
@@ -115,7 +123,9 @@ def main():
         resume_path = "model_scratch.pt"
 
     if args_cli.env_cfg:
-        env_cfg = load_pickle(os.path.join(log_dir, "params", "env.pkl"))
+        # Read legacy saved configs without relying on Isaac Lab's removed helper.
+        with open(os.path.join(log_dir, "params", "env.pkl"), "rb") as file:
+            env_cfg = pickle.load(file)
     if args_cli.agent_cfg:
         agent_cfg_dict = load_yaml(os.path.join(log_dir, "params", "agent.yaml"))
     else:
@@ -168,6 +178,10 @@ def main():
                 os.makedirs(export_model_dir)
             obs, _ = env.get_observations()
             ppo_runner.alg.actor_critic.export_as_onnx(obs, export_model_dir)
+            if args_cli.export_only:
+                print(f"[INFO] ONNX export complete: {export_model_dir}. Exiting without playback.")
+                env.close()
+                return
 
     # use the exported model for inference
     if args_cli.useonnx:
@@ -220,10 +234,13 @@ def main():
             if e.type == KeyboardEventType.KEY_PRESS or e.type == KeyboardEventType.KEY_REPEAT:
                 override_command[:] = 0.0
 
-    app_window = omni.appwindow.get_default_app_window()
-    keyboard = app_window.get_keyboard()
-    input = carb.input.acquire_input_interface()
-    input.subscribe_to_keyboard_events(keyboard, on_keyboard_input)
+    if args_cli.keyboard_control:
+        import omni.appwindow
+
+        app_window = omni.appwindow.get_default_app_window()
+        keyboard = app_window.get_keyboard()
+        input = carb.input.acquire_input_interface()
+        input.subscribe_to_keyboard_events(keyboard, on_keyboard_input)
 
     # reset environment
     obs, _ = env.get_observations()

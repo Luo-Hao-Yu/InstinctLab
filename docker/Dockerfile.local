@@ -1,0 +1,56 @@
+ARG BASE_IMAGE=isaac-lab-base:latest
+FROM ${BASE_IMAGE} AS base_snapshot
+FROM base_snapshot
+
+USER root
+ENV OMNI_KIT_ALLOW_ROOT=1
+ENV ISAACLAB_PATH=/workspace/isaaclab
+COPY .environment/IsaacLab/ /workspace/isaaclab/
+COPY .environment/instinct_rl/ /workspace/instinct_rl/
+COPY source/ /workspace/instinctlab/source/
+COPY docker/constraints.local.txt /workspace/constraints.local.txt
+
+RUN /isaac-sim/python.sh -m pip install --no-cache-dir \
+    -c /workspace/constraints.local.txt \
+    -e /workspace/isaaclab/source/isaaclab \
+    -e /workspace/isaaclab/source/isaaclab_assets \
+    -e /workspace/isaaclab/source/isaaclab_contrib \
+    -e /workspace/isaaclab/source/isaaclab_rl \
+    -e /workspace/isaaclab/source/isaaclab_tasks \
+    -e /workspace/isaaclab/source/isaaclab_mimic \
+    -e /workspace/instinct_rl \
+    -e /workspace/instinctlab/source/instinctlab \
+    pre-commit onnxruntime==1.23.2
+
+# Isaac Sim deduplicates pip's vendored files with symlinks. Updating packaging
+# removes some targets; restore a self-contained pip from Python's bundled wheel.
+RUN /isaac-sim/kit/python/bin/python3 -c \
+    "import ensurepip, pathlib, shutil, zipfile; site=pathlib.Path('/isaac-sim/kit/python/lib/python3.11/site-packages'); shutil.rmtree(site/'pip'); [shutil.rmtree(p) for p in site.glob('pip-*.dist-info')]; wheel=next((pathlib.Path(ensurepip.__file__).parent/'_bundled').glob('pip-*.whl')); zipfile.ZipFile(wheel).extractall(site)"
+
+# The optional USD-to-URDF exporter requires lxml<5, while Lab's pinned
+# dex-retargeting requires lxml>=5.2.2. It is unused by this RL environment.
+RUN /isaac-sim/python.sh -m pip uninstall -y nvidia-srl-usd-to-urdf \
+    && /isaac-sim/python.sh -m pip install --no-cache-dir \
+    -c /workspace/constraints.local.txt \
+    'fastapi>=0.121,<0.122' 'lxml>=5.2.2' \
+    'usd-core==25.5.1' 'docstring-parser==0.16' 'PyJWT>=2,<3' \
+    && /isaac-sim/python.sh -m pip check
+
+# Torch and Kit also reference the original packaging files through symlinks.
+# Restore the files without restoring their old distribution metadata.
+COPY --from=base_snapshot \
+    /isaac-sim/exts/omni.isaac.core_archive/pip_prebundle/packaging/ \
+    /isaac-sim/exts/omni.isaac.core_archive/pip_prebundle/packaging/
+
+# Remove files from the older Lab layout that would shadow new packages.
+# Editable installations already point at these stable source paths.
+RUN rm -rf /workspace/isaaclab
+COPY .environment/IsaacLab/ /workspace/isaaclab/
+RUN ln -s /isaac-sim /workspace/isaaclab/_isaac_sim
+
+RUN printf '#!/bin/bash\nexec /isaac-sim/python.sh "$@"\n' > /usr/local/bin/python \
+    && chmod +x /usr/local/bin/python
+ENV PYTHONPATH=/workspace/instinct_rl:/workspace/instinctlab/source/instinctlab
+RUN git config --system --add safe.directory /workspace/instinctlab
+WORKDIR /workspace/instinctlab
+ENTRYPOINT ["bash"]
