@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from isaaclab.terrains.height_field.utils import height_field_to_mesh
 
+from instinctlab.terrains.platform_course import platform_course_bounds
 from instinctlab.utils.perlin import generate_fractal_noise_2d
 
 if TYPE_CHECKING:
@@ -1243,67 +1244,68 @@ def perlin_cross_stone_terrain(difficulty: float, cfg: hf_terrains_cfg.PerlinCro
 @generate_wall
 @height_field_to_mesh
 def perlin_square_gap_terrain(difficulty: float, cfg: hf_terrains_cfg.PerlinSquareGapTerrainCfg) -> np.ndarray:
-    """Generate a terrain with a square gap pattern."""
+    """Generate a square ring or a transverse platform gap, optionally with rough surfaces.
+
+    The platform gap spans the entire generated Y extent. The height-field decorator
+    adds a narrow outer rim, so tasks using this layout must terminate before that rim.
+    Gap widths are rounded to the horizontal grid resolution.
+    """
+    if cfg.layout not in ("square_ring", "platform_gap", "platform_course"):
+        raise ValueError(f"Unknown gap layout: {cfg.layout}")
+    if not 0.0 <= difficulty <= 1.0:
+        raise ValueError("Gap difficulty must be in [0, 1].")
+    if not 0 < cfg.gap_distance_range[0] <= cfg.gap_distance_range[1]:
+        raise ValueError("Gap widths must be positive and ordered.")
+    if not 0 < cfg.gap_depth[0] <= cfg.gap_depth[1]:
+        raise ValueError("Gap depths must be positive and ordered.")
     # resolve terrain configuration
     gap_distance = cfg.gap_distance_range[0] + difficulty * (cfg.gap_distance_range[1] - cfg.gap_distance_range[0])
 
     width_pixels = int(cfg.size[0] / cfg.horizontal_scale)
     length_pixels = int(cfg.size[1] / cfg.horizontal_scale)
-    # -- platform
-    platform_width = round(cfg.platform_width / cfg.horizontal_scale)
-
-    # create a terrain with a flat platform at the center
     hf_raw = np.zeros((width_pixels, length_pixels))
-    # add the steps
-    # compute discrete gap size
     gap_distance_px = round(gap_distance / cfg.horizontal_scale)
-
-    # platform coordinates (centered square)
-    platform_start_x = (width_pixels - platform_width) // 2
-    platform_end_x = platform_start_x + platform_width
-    platform_start_y = (length_pixels - platform_width) // 2
-    platform_end_y = platform_start_y + platform_width
-
-    # ensure platform inside bounds
-    platform_start_x = max(0, platform_start_x)
-    platform_start_y = max(0, platform_start_y)
-    platform_end_x = min(width_pixels, platform_end_x)
-    platform_end_y = min(length_pixels, platform_end_y)
-
-    # create central platform
-    hf_raw[platform_start_x:platform_end_x, platform_start_y:platform_end_y] = 0
-
-    # groove depth in pixels (use cfg.gap_depth if available, else default to one vertical unit)
     gap_depth = np.random.uniform(cfg.gap_depth[0], cfg.gap_depth[1])
     gap_value = -round(gap_depth / cfg.vertical_scale)
 
-    # draw square "spiral" grooves (concentric square borders) outward from the platform
-    # Only draw one ring of gap around the platform
-    sx = platform_start_x - gap_distance_px
-    ex = platform_end_x + gap_distance_px
-    sy = platform_start_y - gap_distance_px
-    ey = platform_end_y + gap_distance_px
-
-    # clamp to terrain bounds
-    sx_clamped = max(0, sx)
-    ex_clamped = min(width_pixels, ex)
-    sy_clamped = max(0, sy)
-    ey_clamped = min(length_pixels, ey)
-
-    t = gap_distance_px  # thickness of the groove
-
-    # Draw the groove border (top, bottom, left, right)
-    # Top edge
-    hf_raw[sx_clamped:ex_clamped, sy_clamped : sy_clamped + t] = gap_value
-    # Bottom edge
-    hf_raw[sx_clamped:ex_clamped, max(sy_clamped, ey_clamped - t) : ey_clamped] = gap_value
-    # Left edge
-    hf_raw[sx_clamped : sx_clamped + t, sy_clamped:ey_clamped] = gap_value
-    # Right edge
-    hf_raw[max(sx_clamped, ex_clamped - t) : ex_clamped, sy_clamped:ey_clamped] = gap_value
-    ey_clamped = min(length_pixels, ey)
-
-    t = gap_distance_px  # thickness of the groove
+    if cfg.layout == "platform_course":
+        if cfg.slope_threshold is None or cfg.gap_depth[0] <= cfg.slope_threshold * cfg.horizontal_scale:
+            raise ValueError("platform_course requires vertical-wall slope correction.")
+        bounds = platform_course_bounds(difficulty, cfg, getattr(cfg, "seed", 0))
+        # Inclusive high vertices define the exact top dimensions after vertical-wall correction.
+        x = (np.arange(width_pixels) - (width_pixels - 1) / 2) * cfg.horizontal_scale
+        y = (np.arange(length_pixels) - (length_pixels - 1) / 2) * cfg.horizontal_scale
+        if bounds[0, 0] < x[0] or bounds[-1, 1] > x[-1] or cfg.platform_width >= y[-1] - y[0]:
+            raise ValueError("Platform course does not fit inside the terrain tile.")
+        hf_raw.fill(gap_value)
+        for left, right in bounds:
+            top = ((x >= left - 1e-6) & (x <= right + 1e-6))[:, None] & (
+                np.abs(y)[None, :] <= cfg.platform_width / 2 + 1e-6
+            )
+            hf_raw[top] = 0
+    elif cfg.layout == "platform_gap":
+        if cfg.slope_threshold is None:
+            raise ValueError("platform_gap requires vertical-wall slope correction.")
+        if gap_distance_px < 3 or gap_distance_px + 3 >= width_pixels:
+            raise ValueError("Gap width does not fit the height-field resolution or tile size.")
+        if cfg.gap_depth[0] <= cfg.slope_threshold * cfg.horizontal_scale:
+            raise ValueError("Gap depth must trigger vertical-wall slope correction.")
+        # The converter moves the two bottom edge vertices outward to the high edges.
+        # N-1 low vertices leave N intervals between the two vertical walls. At least
+        # two low vertices are needed so the opposite wall corrections do not cancel.
+        start = (width_pixels - gap_distance_px + 1) // 2
+        hf_raw[start : start + gap_distance_px - 1, :] = gap_value
+    else:
+        # Preserve the original square ring for other users of this terrain type.
+        platform_width = round(cfg.platform_width / cfg.horizontal_scale)
+        px = max(0, (width_pixels - platform_width) // 2)
+        py = max(0, (length_pixels - platform_width) // 2)
+        ex = min(width_pixels, px + platform_width)
+        ey = min(length_pixels, py + platform_width)
+        sx, sy = max(0, px - gap_distance_px), max(0, py - gap_distance_px)
+        ox, oy = min(width_pixels, ex + gap_distance_px), min(length_pixels, ey + gap_distance_px)
+        hf_raw[sx:ox, sy:oy] = gap_value
+        hf_raw[px:ex, py:ey] = 0
 
     if cfg.perlin_cfg is not None:
         perlin_cfg = cfg.perlin_cfg

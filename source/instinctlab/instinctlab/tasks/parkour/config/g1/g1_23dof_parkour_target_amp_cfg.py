@@ -3,11 +3,13 @@
 import copy
 from pathlib import Path
 
+from isaaclab.managers import TerminationTermCfg
 from isaaclab.utils import configclass
 
 from instinctlab.assets.unitree_g1_23dof import G1_23DOF_ACTION_SCALE, G1_23DOF_CFG, G1_23DOF_LINKS, g1_23dof_symmetry
 from instinctlab.motion_reference import MotionReferenceManager
 from instinctlab.sensors import get_link_prim_targets
+from instinctlab.tasks.parkour import mdp
 
 from .g1_parkour_target_amp_cfg import G1ParkourRoughEnvCfg, G1ParkourRoughEnvCfg_PLAY, motion_reference_cfg
 
@@ -54,3 +56,10 @@ class G1Parkour23DofEnvCfg_PLAY(G1ParkourRoughEnvCfg_PLAY):
     def __post_init__(self):
         super().__post_init__()
         _configure_robot(self)
+        # Evaluate crossings with the same horizon and fall rules used in training.
+        self.episode_length_s = 60.0
+        self.terminations.root_height = TerminationTermCfg(
+            func=mdp.root_height_below_env_origin_minimum, params={"minimum_height": 0.5}
+        )
+        self.scene.terrain.terrain_generator.num_rows = 10
+        self.scene.terrain.max_init_terrain_level = 9

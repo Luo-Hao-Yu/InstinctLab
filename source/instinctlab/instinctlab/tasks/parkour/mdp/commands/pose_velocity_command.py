@@ -278,8 +278,8 @@ class PoseVelocityCommand(CommandTerm):
 
         self.vel_command_b[:, 2] = torch.clamp(
             self.vel_command_b[:, 2],
-            self.cfg.ranges.ang_vel_z[0],
-            self.cfg.ranges.ang_vel_z[1],
+            self.ang_vel_z_range[:, 0],
+            self.ang_vel_z_range[:, 1],
         )
         self.vel_command_b[:] *= (target_dist > self.cfg.target_dis_threshold).unsqueeze(-1)
         self.vel_command_b[:, :2] *= (

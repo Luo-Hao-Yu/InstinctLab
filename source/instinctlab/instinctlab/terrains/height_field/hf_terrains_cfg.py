@@ -202,6 +202,12 @@ class PerlinCrossStoneTerrainCfg(HfTerrainBaseCfg, WallTerrainCfgMixin):
 class PerlinSquareGapTerrainCfg(HfTerrainBaseCfg, WallTerrainCfgMixin):
     function = hf_terrains.perlin_square_gap_terrain
 
+    layout: str = "square_ring"
+    """``square_ring``, ``platform_gap``, or a narrow multi-platform ``platform_course``."""
+
+    platform_count: int = 10
+    platform_length: float = 0.9
+
     gap_distance_range: tuple[float, float] = (0.1, 0.5)
     gap_depth: tuple[float, float] = (0.2, 0.5)
     platform_width: float = 1.5

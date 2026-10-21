@@ -12,6 +12,21 @@ if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
 
 
+def gap_crossing_levels(env: ManagerBasedRLEnv, env_ids: Sequence[int]) -> torch.Tensor:
+    """Promote gap difficulty only after reaching and holding the far-bank target without failure."""
+    terrain = env.scene.terrain
+    command = env.command_manager.get_term("base_velocity")
+    tracking = command.metrics["tracking_exp_vel_xy"][env_ids]
+    is_gap = command.is_gap_env[env_ids]
+    success = command.metrics["crossing_success"][env_ids] > 0.5
+    failed = env.termination_manager.terminated[env_ids]
+    completed = env.episode_length_buf[env_ids] > 0
+    move_up = torch.where(is_gap, success & ~failed, tracking > 0.6) & completed
+    move_down = torch.where(is_gap, ~success | failed, tracking < 0.3) & completed & ~move_up
+    terrain.update_env_origins(env_ids, move_up, move_down)
+    return torch.mean(terrain.terrain_levels.float())
+
+
 def tracking_exp_vel(
     env: ManagerBasedRLEnv,
     env_ids: Sequence[int],

@@ -49,3 +49,18 @@ def root_height_below_env_origin_minimum(
     asset: RigidObject = env.scene[asset_cfg.name]
     terrain_base_height = torch.clamp(env.scene.env_origins[:, 2], max=0.0)
     return asset.data.root_pos_w[:, 2] - terrain_base_height < minimum_height
+
+
+def platform_course_out_of_bounds(env: ManagerBasedRLEnv) -> torch.Tensor:
+    """Keep gap-course roots over the 60-cm corridor; no walking beside the platforms."""
+    command = env.command_manager.get_term("base_velocity")
+    terrain = env.scene.terrain
+    local = env.scene["robot"].data.root_pos_w - terrain.env_origins
+    bounds = command.course_bounds[terrain.terrain_levels, terrain.terrain_types]
+    outside_course = (
+        (local[:, 0] < bounds[:, 0, 0])
+        | (local[:, 0] > bounds[:, -1, 1])
+        | (local[:, 1].abs() > command.platform_half_width)
+    )
+    outside_tile = sub_terrain_out_of_bounds(env, distance_buffer=0.5)
+    return torch.where(command.is_gap_env, outside_course, outside_tile)

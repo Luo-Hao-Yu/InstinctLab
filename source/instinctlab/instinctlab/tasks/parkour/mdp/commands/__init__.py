@@ -1,2 +1,3 @@
 from .commands_cfg import PoseVelocityCommandCfg
+from .gap_crossing_command import GapCrossingCommand
 from .pose_velocity_command import PoseVelocityCommand

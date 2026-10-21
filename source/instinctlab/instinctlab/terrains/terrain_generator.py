@@ -1,11 +1,48 @@
 from __future__ import annotations
 
+import numpy as np
+import torch
 from typing import TYPE_CHECKING
 
 from isaaclab.terrains import SubTerrainBaseCfg, TerrainGenerator
 
+from .platform_course import platform_course_bounds
+
 if TYPE_CHECKING:
     from .terrain_generator_cfg import FiledTerrainGeneratorCfg
+
+
+class PlatformCourseTerrainGenerator(TerrainGenerator):
+    """Sample spawn/goal patches on the actual first/last platform of each generated tile."""
+
+    def __init__(self, cfg, device="cpu"):
+        count = cfg.sub_terrains["square_gaps"].platform_count
+        self.platform_bounds = np.zeros((cfg.num_rows, cfg.num_cols, count, 2), dtype=np.float32)
+        super().__init__(cfg, device)
+
+    def _get_terrain_mesh(self, difficulty, cfg):
+        self._current_difficulty = difficulty
+        return super()._get_terrain_mesh(difficulty, cfg)
+
+    def _add_sub_terrain(self, mesh, origin, row, col, sub_terrain_cfg):
+        if getattr(sub_terrain_cfg, "layout", None) == "platform_course":
+            sub_terrain_cfg = sub_terrain_cfg.copy()
+            bounds = platform_course_bounds(self._current_difficulty, sub_terrain_cfg, self.cfg.seed)
+            self.platform_bounds[row, col] = bounds
+            # IsaacLab retains flat_patches after releasing the generator. Store the
+            # geometric endpoints there as positions, using its world-offset handling.
+            for key, edge in (("platform_starts", 0), ("platform_ends", 1)):
+                if key not in self.flat_patches:
+                    self.flat_patches[key] = torch.zeros(
+                        self.cfg.num_rows, self.cfg.num_cols, len(bounds), 3, device=self.device
+                    )
+                self.flat_patches[key][row, col, :, 0] = torch.as_tensor(bounds[:, edge], device=self.device)
+            for key, index in (("init_pos", 0), ("target", -1)):
+                center = float(bounds[index].mean())
+                patch = sub_terrain_cfg.flat_patch_sampling[key]
+                patch.x_range = (center - 0.025, center + 0.025)
+                patch.y_range = (-0.025, 0.025)
+        super()._add_sub_terrain(mesh, origin, row, col, sub_terrain_cfg)
 
 
 class FiledTerrainGenerator(TerrainGenerator):

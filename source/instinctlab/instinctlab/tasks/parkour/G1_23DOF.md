@@ -1,5 +1,9 @@
 # G1 23dof Parkour
 
+The current shared terrain configuration specializes in a straight course of ten
+90×60 cm rough platforms separated by 10–35 cm gaps, with three terrain types.
+See [the gap-crossing task guide](GAP_CROSSING.md) for changes, validation, and training commands.
+
 This task uses Unitree's official `g1_23dof.urdf`, its pelvis root, joint axes,
 inertias and joint/motor limits. Source attribution and the pinned revision are in
 `assets/resources/unitree_g1/g1_23dof.source.json`.
